@@ -17,6 +17,22 @@
       <input v-model="registerPassword" type="password" id="registerPassword"/>
       <button @click="register()">Register</button>
     </form>
+    <form enctype="multipart/form-data">
+      <div>
+        <input id="file" type="file" multiple @change="processFile"/>
+        <label for="file">Choose file</label>
+      </div>
+      <button @click="uploadFiles()">Upload files</button>
+    </form>
+    <div v-if="uploadedFiles">
+      <ul>
+        <li v-for="file in uploadedFiles">
+          <p>{{file.filename}}</p>
+          <button @click="removeFile(file._id)">Remove file</button>
+          <button @click="downloadFile(file._id, file.filename)">Download file</button>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -29,10 +45,27 @@ export default {
       loginEmail: '',
       loginPassword: '',
       registerEmail: '',
-      registerPassword: ''
+      registerPassword: '',
+      postFormData: new FormData(),
+      uploadedFiles: []
     }
   },
   methods: {
+    processFile(event) {
+      for(const key in event.target.files){
+        this.postFormData.append('file', event.target.files[key]);
+      }
+      // save it
+      console.log( this.postFormData);
+    },
+
+    uploadFiles: function() {
+      this.axios.post('http://localhost:9005/api/file/upload', this.postFormData)
+        .then(response => {
+        console.log(response);
+        });
+    },
+
     login: function () {
       this.$auth.login({ email: this.loginEmail, password: this.loginPassword }).then(function () {
         console.log('hello');
@@ -56,7 +89,38 @@ export default {
         console.log('response : ', self.response);
       })
     },
+
+    removeFile: function(fileId) {
+      console.log(fileId);
+      this.axios.post('http://localhost:9005/api/file/remove', { fileId: fileId })
+        .then(response => {
+        console.log(response.data);
+        });
+    },
+    downloadFile: function(fileId, filename) {
+      this.$http.post(
+        'http://localhost:9005/api/file/download',
+        {fileId: fileId},
+        {responseType: 'arraybuffer'}
+      )
+        .then(function (response) {
+        console.log(response);
+        const blob = new Blob([response.data],{type:response.headers['content-type']});
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+      });
+    },
   },
+
+
+  mounted: function () {
+    this.axios.get('http://localhost:9005/api/file/allFiles')
+      .then(response => {
+        this.uploadedFiles = response.data
+      });
+  }
 }
 </script>
 
