@@ -1,0 +1,13 @@
+{
+  "root": true,
+   "extends": [
+     "eslint:recommended",
+     "plugin:vue/strongly-recommended"
+   ],
+   "plugin": [
+     "vue"
+   ],
+  "env": {
+    "browser": true
+  }
+}
