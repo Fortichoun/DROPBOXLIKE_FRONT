@@ -41,7 +41,9 @@
 </template>
 
 <script>
-export default {
+  import {AUTH_REQUEST, REGISTER_REQUEST} from '../store/actions/auth'
+
+  export default {
   name: 'Login',
   data () {
     return {
@@ -55,38 +57,46 @@ export default {
   },
   methods: {
     login: function () {
-      const self = this;
-      this.$auth.login({ email: this.loginEmail, password: this.loginPassword })
-        .then(function (response) {
-        if(response.data.status === 'NOTFOUND') {
-          self.errorMessage = 'This account doesn\'t exist'
-        }
-        if(response.data.status === 'BADPASS') {
-          self.errorMessage = 'The password doesn\'t match the email'
-        }
-        if(response.data.user) {
-          self.$router.push('home');
-        }
+      const { loginEmail, loginPassword } = this;
+      this.$store.dispatch(AUTH_REQUEST, { loginEmail, loginPassword }).then(() => {
+        this.$router.push('/home')
       });
+//      const self = this;
+//      this.$auth.login({ email: this.loginEmail, password: this.loginPassword })
+//        .then(function (response) {
+//        if(response.data.status === 'NOTFOUND') {
+//          self.errorMessage = 'This account doesn\'t exist'
+//        }
+//        if(response.data.status === 'BADPASS') {
+//          self.errorMessage = 'The password doesn\'t match the email'
+//        }
+//        if(response.data.user) {
+//          self.$router.push('home');
+//        }
+//      });
     },
 
     register: function () {
-      const self = this;
+//      const self = this;
       const user = {
         email: this.registerEmail,
         password: this.registerPassword,
         access_token: 'tmFvgF4emDrvCpXuE3bvIW6GKuUVBaBo',
       };
 
-      if (this.$auth.isAuthenticated()) {
-        this.$auth.logout()
-      }
+      this.$store.dispatch(REGISTER_REQUEST, user).then(() => {
+        this.$router.push('/home')
+      });
 
-      this.$auth.register(user).then(function (response) {
-        self.response = response;
-        //eslint-disable-next-line
-        console.log('register');
-      })
+//      if (this.$auth.isAuthenticated()) {
+//        this.$auth.logout()
+//      }
+//
+//      this.$auth.register(user).then(function (response) {
+//        self.response = response;
+//        //eslint-disable-next-line
+//        console.log('register');
+//      })
     },
   },
 }

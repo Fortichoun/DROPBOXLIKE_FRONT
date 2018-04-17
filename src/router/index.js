@@ -5,6 +5,7 @@ import Home from '@/components/Home'
 import VueAxios from 'vue-axios'
 import VueAuthenticate from 'vue-authenticate'
 import axios from 'axios';
+import store from '../store'
 
 Vue.use(VueAxios, axios);
 Vue.use(VueAuthenticate, {
@@ -20,18 +21,36 @@ Vue.use(VueAuthenticate, {
 
 Vue.use(Router);
 
+const ifNotAuthenticated = (to, from, next) => {
+  if (!store.getters.isAuthenticated) {
+    next();
+    return
+  }
+  next('/home')
+};
+
+const ifAuthenticated = (to, from, next) => {
+  if (store.getters.isAuthenticated) {
+    next();
+    return
+  }
+  next('/')
+};
+
 export default new Router({
   mode: 'history',
   routes: [
     {
       path: '/',
       name: 'login',
-      component: Login
+      component: Login,
+      beforeEnter: ifNotAuthenticated
     },
     {
       path: '/home/:path*',
       name: 'home',
-      component: Home
+      component: Home,
+      beforeEnter: ifAuthenticated
     }
   ]
 })
