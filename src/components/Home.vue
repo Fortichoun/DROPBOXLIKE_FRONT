@@ -11,7 +11,7 @@
       </li>
     </ul>
     <button @click="logout">Logout</button>
-    <h1>{{ msg }}</h1>
+    <h1>{{ currentFolder }}</h1>
     <button @click="createFolder()">Create New Folder</button>
     <form
       enctype="multipart/form-data"
@@ -31,13 +31,13 @@
       <table id="fileList">
         <tr>
           <th>File name</th>
-          <th>Actions</th>
+          <th class="tdContext">Actions</th>
         </tr>
         <tr
           v-for="(file, key) in uploadedFiles"
           :key="key"
           :id="'row' + key"
-          @click="moveToFolder($event, file.filename, file.isFolder)"
+          @click="handleClickOnRow($event, key, file)"
         >
           <td>
             <drop
@@ -51,27 +51,46 @@
                 @dragstart="over = true"
                 @dragend="over = false"
               >
-                <img
+                <icon
                   v-if="file.isFolder"
-                  src="../assets/folderIcon.png"
+                  name="folder"
                   class="fileListIcon"
                 >
+                </icon>
                 <img
-                  v-else=""
-                  src="../assets/fileIcon.png"
+                  v-else-if="file.imageBuffer"
+                  :src="'data:image/jpg;base64,' + file.imageBuffer"
+                  class="fileListIcon"
+                  v-viewer="{navbar: false, title: false, toolbar: false, hidden: true}"
+                >
+                <!--<img-->
+                  <!--v-else-->
+                  <!--src="../assets/fileIcon.png"-->
+                  <!--class="fileListIcon"-->
+                <!--&gt;-->
+                <icon
+                  v-else-if="file.isVideo"
+                  name="video"
                   class="fileListIcon"
                 >
-                {{ file.filename }}
+                </icon>
+                <icon
+                  v-else
+                  name="file"
+                  class="fileListIcon"
+                >
+                </icon>
                 <input
                   type="text"
                   :class="['input' + key, 'inputFields']"
                   :value="file.filename"
                   v-on-clickaway="($event) => awayFromInput($event, key, file.filename)"
                 >
+                <div class="filename">{{ file.filename }}</div>
               </drag>
             </drop>
           </td>
-          <td>
+          <td class="tdContext">
             <drop
               class="drop"
               :class="{over: file.isFolder && over}"
@@ -83,26 +102,29 @@
                 @dragstart="over = true"
                 @dragend="over = false"
               >
-                <button
-                  class="contextMenu"
-                  @click="displayNav(key)"
-                >
-                  <img
-                    class="contextMenuImg"
-                    src="../assets/contextMenu.png"
+                <!--<button-->
+                  <!--class="contextMenu"-->
+                  <!--@click="displayNav(key)"-->
+                <!--&gt;-->
+                  <!--<img-->
+                    <!--class="contextMenuImg"-->
+                    <!--src="../assets/contextMenu.png"-->
+                  <!--&gt;-->
+                <div @click="displayNav(key)">
+                  <icon
+                    name="ellipsis-h"
+                    class="contextMenu"
                   >
-                </button>
+                  </icon>
+                </div>
+
+                <!--</button>-->
                 <nav
                   class="nav"
                   v-on-clickaway="($event) => away($event, key)"
                   @click="hideNav(key)"
                 >
                   <ul>
-                    <li><button
-                      @click="removeFile(file.filename)"
-                      class="navButton">
-                      Remove file
-                    </button></li>
                     <li><button
                       @click="downloadFile(file)"
                       class="navButton">
@@ -113,6 +135,11 @@
                       class="navButton">
                       Rename File
                     </button></li>
+                    <li><button
+                      @click="removeFile(file.filename)"
+                      class="navButton">
+                      Remove file
+                    </button></li>
                   </ul>
                 </nav>
               </drag>
@@ -121,6 +148,19 @@
         </tr>
       </table>
     </div>
+    <modal
+      :resizable=true
+      :draggable=true
+      :width="1280"
+      name="videoModal"
+      height="auto"
+      :scrollable=true
+      @opened="(event) => modalOpened(event, 'hello')"
+    >
+      <div class="videoContainer">
+        <video id="videoPlayer" controls></video>
+      </div>
+    </modal>
   </div>
 </template>
 
@@ -136,13 +176,12 @@
     mixins: [ clickaway ],
     data () {
       return {
-        msg: 'Home page',
         postFormData: new FormData(),
         uploadedFiles: [],
         path: this.$route.params.path || '',
-//        folderName: '',
         over: false,
         newFileNumber: -1,
+        video: '',
       }
     },
     components: {
@@ -160,10 +199,77 @@
       },
       treeFolders: function() {
           return this.getFolderTreePath();
+      },
+      currentFolder: function() {
+          return  this.$route.fullPath.replace("%2F", "/").split('/').pop() || 'Home';
       }
     },
 
     methods: {
+      // getVideoSource(filename) {
+      //   this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/video',
+      //     { params: { userFolder: this.userFolder, path: this.path, videoName: filename } }
+      //   )
+      //   .then(response => {
+      //     console.log('videoResponse', response);
+      //     console.log('videoResponsedata', response.data);
+      //     this.video += response.data;
+      //   });
+      // },
+
+      modalOpened(event, filename) {
+        console.log('eventmodal', event);
+        const source = document.createElement('source');
+        const video = document.getElementById('videoPlayer');
+        const modal = document.getElementsByClassName('v--modal')[0];
+        // const video = document.createElement('video');
+        // const modal = document.getElementById('videoModal');
+        // console.log('modal', modal);
+        // console.log('source', source);
+        source.setAttribute('src', `${this.$backendPath}:${this.$backendPort}/api/file/video?userFolder=${this.userFolder}&path=${this.path}&videoName=${this.video}`);
+        // video.setAttribute('controls', 'true');
+        video.appendChild(source);
+        // modal.appendChild(video);
+        video.load();
+      },
+
+      handleClickOnRow(event, key, {filename, isFolder, imageBuffer, isVideo}) {
+        console.log('eveeeeent', event);
+        // console.log('eveeeeent.target.className', event.target.className);
+        // console.log('eveeeeent.target.classList', event.target.classList);
+        if (event.target.className !== 'contextMenu' &&
+          event.target.className !== 'navButton' &&
+          event.target.className !== 'nav' &&
+          event.srcElement.nodeName !== 'svg' &&
+          event.target.parentElement.nodeName !== 'svg'
+        ) {
+          if (isVideo) {
+            this.video = filename;
+            this.$modal.show('videoModal');
+            console.log('video!!!');
+
+
+            // this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/video',
+            //   { params: { userFolder: this.userFolder, path: this.path, videoName: filename } }
+            // )
+            //   .then(response => {
+            //     source.src += response.data;
+            //   });
+            // source.src = `${this.$backendPath}:${this.$backendPort}/api/file/video?userFolder=' + this.userFolder + '&path=' + this.path + '&videoName=' + 'Hello'
+          }
+          else if (imageBuffer) {
+            this.displayPicture(key)
+          } else {
+            this.moveToFolder(event, filename, isFolder)
+          }
+        }
+      },
+
+      displayPicture(key) {
+        const viewer = document.getElementById(`row${key}`).getElementsByClassName('fileListIcon')[0].$viewer;
+        viewer.show()
+      },
+
       handleDrop(key, file) {
         this.over = false;
         const destinationFile = this.uploadedFiles[key];
@@ -183,7 +289,7 @@
         for(const key in event.target.files){
           this.postFormData.append('file', event.target.files[key]);
         }
-        this.axios.post('http://localhost:9005/api/file/upload',
+        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/upload`,
           this.postFormData,
           {params: {userFolder: this.userFolder, path: this.path}}
         )
@@ -191,22 +297,23 @@
       },
 
 //      uploadFiles: function() {
-//        this.axios.post('http://localhost:9005/api/file/upload',
+//        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/upload',
 //          this.postFormData,
 //          {params: {userFolder: this.userFolder, path: this.path}}
 //        );
 //      },
 
       removeFile: function(filename) {
-        this.axios.post('http://localhost:9005/api/file/remove',
+        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/remove`,
           {userFolder: this.userFolder, path: this.path, filename}
         )
           .then(() => this.getFilesInCurrentFolder());
       },
 
       downloadFile: function(file) {
+        //TODO TEST WITH AXIOS
         this.$http.post(
-          'http://localhost:9005/api/file/download',
+          `${this.$backendPath}:${this.$backendPort}/api/file/download`,
           { userFolder: this.userFolder,
             path: this.path,
             filename: file.filename,
@@ -223,12 +330,11 @@
           });
       },
 
-      moveToFolder: function(event, folderName, isFolder) {
+      moveToFolder: function(event, folderName, isFolder, self) {
           console.log('event', event);
-          console.log('hello');
+          console.log('hello', this);
           console.log('isFolder', isFolder);
           if (isFolder &&
-            event.target.className !== 'contextMenuImg' &&
             event.target.className !== 'contextMenu' &&
             event.target.className !== 'navButton' &&
             event.target.className !== 'nav'
@@ -237,7 +343,7 @@
 //            const decodedFolderName = folderName.replace("%2F", "/");
             this.path = (!this.path) ? folderName : `${this.path}/${folderName}`;
             this.$router.push({ path: '/home/' + this.path.replace("%20", "-")});
-            this.axios.get('http://localhost:9005/api/file/allFiles',
+            this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/allFiles`,
               { params: { userFolder: this.userFolder, path: this.path } }
             )
               .then(response => {
@@ -251,13 +357,11 @@
         console.log('uploadedFiles', this.uploadedFiles);
         this.uploadedFiles.push({ filename: '', isFolder: true });
         const inputNumber = this.uploadedFiles.length - 1;
-        console.log('inputNumber', inputNumber);
-        console.log('hey', document.getElementsByClassName('inputFields'));
 //        this.renameFile(inputNumber);
         this.newFileNumber = inputNumber;
 
 
-//        this.axios.post('http://localhost:9005/api/file/newFolder',
+//        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/newFolder',
 //          {userFolder: this.userFolder, path: this.path, folderName: this.folderName}
 //        )
 //          .then(() => {
@@ -269,7 +373,7 @@
 
       getFilesInCurrentFolder: function() {
         if (this.isProfileLoaded) {
-          this.axios.get('http://localhost:9005/api/file/allFiles',
+          this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/allFiles`,
             { params: { userFolder: this.userFolder, path: this.path } }
           )
             .then(response => {
@@ -278,7 +382,7 @@
         }
         else if (!this.isProfileLoaded) {
           this.$store.dispatch(GETUSER_REQUEST).then(() => {
-            this.axios.get('http://localhost:9005/api/file/allFiles',
+            this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/allFiles`,
               { params: { userFolder: this.userFolder, path: this.path } }
             )
               .then(response => {
@@ -291,9 +395,6 @@
       getFolderTreePath: function() {
           const fullPath = this.$route.fullPath.replace("%2F", "/");
           let treeFolders = fullPath.split('/').slice(1, -1);
-//          let treeFolders = this.$route.fullPath.split('/').slice(1, -1);
-          console.log('this.$route.fullPath', this.$route.fullPath);
-          console.log('treeFolders', treeFolders);
           const foldersEnhanced = [];
           treeFolders.forEach((folder, index) => {
             foldersEnhanced.push({
@@ -316,7 +417,7 @@
       },
 
       getFolderSize: function () {
-        this.axios.get('http://localhost:9005/api/file/folderSize',
+        this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/folderSize`,
           { params: { userFolder: this.userFolder } }
         )
           .then(response => {
@@ -325,7 +426,7 @@
       },
 
       moveFile: function(sourceFile, destinationFile) {
-        this.axios.post('http://localhost:9005/api/file/move',
+        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/move`,
           {
             userFolder: this.userFolder,
             path: this.path,
@@ -339,10 +440,14 @@
       renameFile: function(key) {
         const inputToFocus = document.getElementsByClassName(`input${key}`)[0];
         inputToFocus.style.display = "block";
+        const fileExtension = inputToFocus.value.split('.').slice(1).join('.');
+        let selectionRange = inputToFocus.value.length - fileExtension.length;
+        if (fileExtension.length !== 0) selectionRange -= 1;
         inputToFocus.focus();
-        inputToFocus.select();
+        inputToFocus.setSelectionRange(0, selectionRange);
+        // inputToFocus.select();
         this.newFileNumber = -1;
-//        this.axios.post('http://localhost:9005/api/file/rename',
+//        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/rename',
 //          { userFolder: this.userFolder,
 //            path: this.path,
 //            filename,
@@ -353,12 +458,18 @@
       },
 
       displayNav: function(rowNumber) {
+        console.log('hey');
+        console.log('rowNumber', rowNumber);
         const clickedNav =  document.getElementById("row" + rowNumber).getElementsByClassName("nav")[0];
+        console.log('clickedNav', clickedNav);
+        // clickedNav.style.display = 'block';
         clickedNav.style.display = (window.getComputedStyle(clickedNav).display === "none") ? "block" : "none";
       },
 
       away: function (event, rowNumber) {
-          if (!(event.target.className === 'contextMenuImg' || event.target.className === 'contextMenu')) {
+          if (event.target.className !== 'contextMenu' &&
+            event.srcElement.nodeName !== 'svg' &&
+            event.target.parentElement.nodeName !== 'svg') {
             const clickedNav =  document.getElementById("row" + rowNumber).getElementsByClassName("nav")[0];
             if (window.getComputedStyle(clickedNav).display !== "none") {
               clickedNav.style.display = 'none';
@@ -376,12 +487,12 @@
             } else {
               if (filename === '') {
                 this.axios.post(
-                  'http://localhost:9005/api/file/newFolder',
+                  `${this.$backendPath}:${this.$backendPort}/api/file/newFolder`,
                   {userFolder: this.userFolder, path: this.path, folderName: input.value}
                 )
                   .then(() => this.getFilesInCurrentFolder() );
               } else {
-                this.axios.post('http://localhost:9005/api/file/rename',
+                this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/rename`,
                   { userFolder: this.userFolder,
                     path: this.path,
                     filename,
@@ -402,12 +513,16 @@
     },
 
     mounted: function () {
+      // console.log('fullpath', this.$route.fullPath);
+      // const fullPath = this.$route.fullPath.replace("%2F", "/").split('/').pop();
+      // console.log("route", fullPath);
+      // const test = fullPath;
+      // console.log("test", test);
       this.getFilesInCurrentFolder();
       this.getFolderTreePath();
     },
 
     updated: function() {
-      console.log('updated', this.uploadedFiles);
       if (this.newFileNumber !== -1) {
           this.renameFile(this.newFileNumber);
       }
@@ -417,6 +532,11 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+  }
   h1, h2 {
     font-weight: normal;
   }
@@ -453,8 +573,10 @@
   }
 
   .fileListIcon {
+    vertical-align: middle;
     width: 30px;
     height: 30px;
+    color: dodgerblue;
   }
 
   .nav {
@@ -467,6 +589,10 @@
     /*margin-left: 96px;*/
     /*margin-top: 3px;*/
     z-index: 1;
+    left:0;
+    right:0;
+    top: 47px;
+    margin: auto;
   }
 
   /*.nav.active  {*/
@@ -493,30 +619,34 @@
   }
 
   .nav button:hover {
-    background-color: lightskyblue;
+    background-color: dodgerblue;
   }
 
   .contextMenu {
     /*position: relative;*/
     border: none;
-    width: 40px;
-    height: 40px;
-    background-color: white;
+    width: 30px;
+    height: 30px;
+    vertical-align: middle;
+    /*margin: auto;*/
+    /*margin-left: 5px;*/
+    /*background-color: white;*/
   }
 
-  .contextMenu > img {
-    /*position: absolute;*/
-    /*top: 50%;*/
-    /*left: 50%;*/
-    width: 20px;
-    height: 20px;
-    vertical-align: middle;
-  }
+  /*.contextMenu > img {*/
+    /*!*position: absolute;*!*/
+    /*!*top: 50%;*!*/
+    /*!*left: 50%;*!*/
+    /*width: 20px;*/
+    /*height: 20px;*/
+    /*vertical-align: middle;*/
+  /*}*/
 
   .contextMenu:hover {
-    border: 2px solid lightblue;
+    border: 2px solid dodgerblue;
     cursor: pointer;
-    padding: 5px;
+    padding: 2px 6px;
+    /*margin-left: 0;*/
   }
   .drop.over {
     border-color: #aaa;
@@ -524,10 +654,10 @@
   }
   .drop {
     height: 100%;
-    position: absolute;
+    /*position: absolute;*/
     width: 100%;
-    top: 0;
-    left: 0;
+    /*top: 0;*/
+    /*left: 0;*/
   }
 
   #uploadFile {
@@ -550,6 +680,19 @@
   #uploadFile:focus + label,
   #uploadFile + label:hover {
     background-color: lightcyan;
+  }
+
+  #fileList tr:hover {
+    /*opacity: 0.5;*/
+    /*color: black;*/
+    background-color: grey;
+  }
+
+  #fileList tr:first-child:hover {
+    /*opacity: 0.5;*/
+    /*color: black;*/
+    background-color: white;
+    cursor: auto;
   }
 
   .inputFields {
@@ -582,5 +725,25 @@
 
   .treePathButton {
     margin: 0;
+  }
+  #videoPlayer {
+    margin: auto;
+    /*vertical-align: middle;*/
+  }
+  .videoContainer {
+    text-align: center;
+    /*display: flex;*/
+    /*align-items: center;*/
+  }
+  /*td > * {*/
+    /*vertical-align : middle;*/
+  /*}*/
+
+  .filename {
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .tdContext {
+    text-align: center;
   }
 </style>

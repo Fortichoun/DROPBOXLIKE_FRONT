@@ -30,7 +30,7 @@
 const STATUS_INITIAL = 0, STATUS_SAVING = 1, STATUS_SUCCESS = 2, STATUS_FAILED = 3;
 
 export default {
-  name: 'App',
+  name: 'DropZone',
   data() {
     return {
       uploadedFiles: [],
@@ -71,7 +71,7 @@ export default {
       // upload data to the server
       this.currentStatus = STATUS_SAVING;
 
-      this.axios.post('http://localhost:9005/api/file/upload',
+      this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/upload`,
           formData,
         {params: {userFolder: this.userFolder, path: this.path}}
       )

@@ -2,6 +2,9 @@
 import { AUTH_REQUEST, REGISTER_REQUEST, AUTH_ERROR, AUTH_SUCCESS, AUTH_LOGOUT, GETUSER_REQUEST, USER_ERROR, USER_SUCCESS } from '../actions/auth'
 import axios from 'axios';
 
+const backendPath = 'http://localhost';
+const backendPort = '9005';
+
 const state = {
   token: localStorage.getItem('user-token') || '',
   status: '',
@@ -20,10 +23,11 @@ const actions = {
   [AUTH_REQUEST]: ({commit, dispatch}, user) => {
     return new Promise((resolve, reject) => {
       commit(AUTH_REQUEST);
-      axios.post('http://localhost:9005/api/auth/login',
+      axios.post(`${backendPath}:${backendPort}/api/auth/login`,
         {email: user.loginEmail, password: user.loginPassword}
       )
         .then(resp => {
+          console.log('resp', resp);
           localStorage.setItem('user-token', resp.data.token);
           axios.defaults.headers.common['Authorization'] = 'Bearer ' + resp.data.token;
           commit(AUTH_SUCCESS, resp);
@@ -39,7 +43,7 @@ const actions = {
   [REGISTER_REQUEST]: ({commit}, user) => {
     return new Promise((resolve, reject) => {
       commit(REGISTER_REQUEST);
-      axios.post('http://localhost:9005/api/auth/register',
+      axios.post(`${backendPath}:${backendPort}/api/auth/register`,
         user
       )
         .then(resp => {
@@ -66,7 +70,7 @@ const actions = {
     return new Promise((resolve, reject) => {
       commit(GETUSER_REQUEST);
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + state.token;
-      axios.get('http://localhost:9005/api/users/me')
+      axios.get(`${backendPath}:${backendPort}/api/users/me`)
         .then(resp => {
           commit(USER_SUCCESS, resp);
           resolve(resp)
