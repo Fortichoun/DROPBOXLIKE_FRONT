@@ -2,6 +2,8 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import Login from '@/components/Login'
 import Home from '@/components/Home'
+import Welcome from '@/components/Welcome'
+import ConfirmEmail from '@/components/ConfirmEmail'
 import VueAxios from 'vue-axios'
 import VueAuthenticate from 'vue-authenticate'
 import axios from 'axios';
@@ -22,7 +24,7 @@ Vue.use(VueAuthenticate, {
 Vue.use(Router);
 
 const ifNotAuthenticated = (to, from, next) => {
-  if (!store.getters.isAuthenticated) {
+  if (!store.getters.isAuthenticated || !store.getters.isEmailConfirmed) {
     next();
     return
   }
@@ -30,7 +32,7 @@ const ifNotAuthenticated = (to, from, next) => {
 };
 
 const ifAuthenticated = (to, from, next) => {
-  if (store.getters.isAuthenticated) {
+  if (store.getters.isAuthenticated && store.getters.isEmailConfirmed) {
     next();
     return
   }
@@ -42,15 +44,20 @@ export default new Router({
   routes: [
     {
       path: '/',
-      name: 'login',
-      component: Login,
-      beforeEnter: ifNotAuthenticated
+      name: 'welcome',
+      component: Welcome,
+      // beforeEnter: ifNotAuthenticated
     },
     {
       path: '/home/:path*',
       name: 'home',
       component: Home,
       beforeEnter: ifAuthenticated
+    },
+    {
+      path: '/confirmEmail/:hash',
+      name: 'confirmEmail',
+      component: ConfirmEmail
     }
   ]
 })

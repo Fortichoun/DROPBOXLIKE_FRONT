@@ -61,13 +61,11 @@ export default {
   },
   methods: {
     reset() {
-      // reset form to initial state
       this.currentStatus = STATUS_INITIAL;
       this.uploadedFiles = [];
       this.uploadError = null;
     },
     save(formData) {
-        console.log('heellllooo');
       // upload data to the server
       this.currentStatus = STATUS_SAVING;
 
