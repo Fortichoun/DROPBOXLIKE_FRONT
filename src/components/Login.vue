@@ -81,20 +81,60 @@
       <!--</facebook-login>-->
       <!--<div class="fb-login-button" data-max-rows="1" data-size="large" data-button-type="login_with" data-show-faces="false" data-auto-logout-link="false" data-use-continue-as="true"></div>    <notifications position="bottom right"/>-->
     </div>
+    <div class="usernameSlider">
+      <h1>ONE LAST STEP !</h1>
+      <div class="confirmationText">
+        <p class="thanksText">Thanks you for registering to SupFiles !</p>
+        <form @submit.prevent="saveUsername">
+          <div class="field">
+            <label class="label">Please let us know your username :</label>
+            <div class="control has-icons-left">
+              <input
+                v-model="username"
+                class="input is-success"
+                type="text"
+                placeholder="Username"
+                :class="{'is-danger': username === '' && emptyUsername}"
+              >
+              <span class="icon is-small is-left">
+              <icon name="user"></icon>
+            </span>
+              <p
+                class="help is-danger"
+                v-show="username === '' && emptyUsername"
+              >
+                Please enter a username
+              </p>
+            </div>
+          </div>
+          <button
+            class="button usernameButton"
+            type="submit"
+          >
+            Let's start !
+          </button>
+        </form>
+      </div>
+      <img
+        src="../assets/supfiles-logo.png"
+        alt="SupFiles"
+        class="modalLogo"
+      >
+    </div>
   </div>
 </template>
-<!--<script2 src="https://apis.google.com/js/platform.js?onload=renderButton"></script2>-->
 
 <script>
-  import {AUTH_REQUEST} from '../store/actions/auth'
+  import {AUTH_REQUEST, GOOGLE_AUTH_REQUEST, UPDATE_USERNAME_REQUEST} from '../store/actions/auth'
   import { mapGetters } from 'vuex'
-  import VueScript2 from 'vue-script2'
   import facebookLogin from 'facebook-login-vuejs';
 
   export default {
     name: 'Login',
     data () {
       return {
+        username: '',
+        emptyUsername: false,
         loginForm: {
           email: '',
           password: '',
@@ -105,16 +145,17 @@
       facebookLogin
     },
     computed: {
-      ...mapGetters(['authStatus']),
+      ...mapGetters(['authStatus', 'getProfile']),
       loading: function () {
         return this.authStatus === 'loading' && !this.isAuthenticated
       },
     },
     mounted: function () {
-      const self = this;
-      VueScript2.load('https://apis.google.com/js/platform.js').then(function () {
-        self.renderButton();
-      });
+      this.googleSignOut();
+      this.renderButton();
+
+      // VueScript2.load('https://apis.google.com/js/platform.js').then(function () {
+      // });
       // VueScript2.load('https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v3.0').then(function () {
         // FB.Event.subscribe('xfbml.render', function () {
         //   console.log("finished rendering plugins");
@@ -135,7 +176,6 @@
 
       login: function () {
         const { email, password } = this.loginForm;
-        console.log('loginform', this.loginForm);
         this.$store.dispatch(AUTH_REQUEST, { email, password }).then((resp) => {
           if(!resp.data.user.isEmailConfirmed) {
             this.$notify({
@@ -151,24 +191,34 @@
           text: 'Invalid Credentials',
         }));
       },
-      // auth: function (provider) {
-      //     if (this.$auth.isAuthenticated()) {
-      //       this.$auth.logout()
-      //     }
-      //
-      //     var this_ = this;
-      //     this.$auth.authenticate(provider).then(function (authResponse) {
-      //       if (provider === 'google') {
-      //         this.axios.get('https://www.googleapis.com/plus/v1/people/me/openIdConnect').then(function (response) {
-      //           this_.response = response
-      //         })
-      //       }
-      //     });
-      //   },
+
+      saveUsername() {
+        if (this.username === '') {
+          this.emptyUsername = true;
+        }
+        else {
+          this.$store.dispatch(UPDATE_USERNAME_REQUEST, { username: this.username, id: this.getProfile.id }).then(() => {
+            this.$router.push('/home')
+          });
+        }
+      },
+
       onSuccess(googleUser) {
-        console.log('hello');
         console.log('Logged in as: ' + googleUser.getBasicProfile().getName());
         console.log('Logged in as: ' + googleUser.getBasicProfile().getEmail());
+        this.$store.dispatch(GOOGLE_AUTH_REQUEST, googleUser.getBasicProfile().getEmail()).then((resp) => {
+          // console.log('hey', this.$parent.$modal.toggle('loginModal', {clickToClose: false}));
+          if(!resp.data.user.username) {
+            const slider = document.getElementsByClassName('usernameSlider')[0];
+            slider.style.right = 0;
+          } else {
+            this.$router.push('/home')
+          }
+        }).catch(() =>  this.$notify({
+            type: 'error',
+            title: 'Error',
+          text: 'Sorry, an error occurred, please retry',
+        }))
       },
       onFailure(error) {
         console.log(error);
@@ -183,8 +233,6 @@
           'onsuccess': this.onSuccess,
           'onfailure': this.onFailure
         });
-        // if(gapi.auth2 && gapi.auth2.getAuthInstance()) {
-        // }
       },
       googleSignOut() {
         if(gapi.auth2) {
@@ -287,6 +335,11 @@
     color: white;
     background-color: #41B883;
   }
+  .usernameButton {
+    cursor: pointer;
+    color: white;
+    background-color: #41B883;
+  }
   .loginContainer {
     height: 100%;
   }
@@ -295,4 +348,34 @@
     width: 300px;
   }
 
+  .usernameSlider {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    right: -100%;
+    background-color: white;
+    color: black;
+    transition:1s ease;
+    text-align: center;
+  }
+
+  .thanksText {
+    margin-bottom: 2%;
+  }
+  .usernameSlider h1 {
+    font-size: x-large;
+  }
+
+  .confirmationText {
+    width: 75%;
+    margin: auto;
+    font-size: large;
+    text-align: left;
+  }
+
+  .modalLogo {
+    margin-top: 5%;
+    width: 70px;
+  }
 </style>

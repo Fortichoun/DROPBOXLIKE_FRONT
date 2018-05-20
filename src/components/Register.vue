@@ -91,6 +91,7 @@
           <span>Register</span>
         </button>
       </form>
+      <div id='my-signin2'/>
       <notifications position="bottom right"/>
     </div>
     <div class="slider">
@@ -106,17 +107,59 @@
         class="logo"
       >
     </div>
+    <div class="usernameSlider">
+      <h1>ONE LAST STEP !</h1>
+      <div class="confirmationText">
+        <p class="thanksText">Thanks you for registering to SupFiles !</p>
+        <form @submit.prevent="saveUsername">
+          <div class="field">
+            <label class="label">Please let us know your username :</label>
+            <div class="control has-icons-left">
+              <input
+                v-model="username"
+                class="input is-success"
+                type="text"
+                placeholder="Username"
+                :class="{'is-danger': username === '' && emptyUsername}"
+              >
+              <span class="icon is-small is-left">
+              <icon name="user"></icon>
+            </span>
+              <p
+                class="help is-danger"
+                v-show="username === '' && emptyUsername"
+              >
+                Please enter a username
+              </p>
+            </div>
+          </div>
+          <button
+            class="button usernameButton"
+            type="submit"
+          >
+            Let's start !
+          </button>
+        </form>
+      </div>
+      <img
+        src="../assets/supfiles-logo.png"
+        alt="SupFiles"
+        class="modalLogo"
+      >
+    </div>
   </div>
 </template>
 
 <script>
-  import {REGISTER_REQUEST} from '../store/actions/auth'
+  import {REGISTER_REQUEST, GOOGLE_AUTH_REQUEST, UPDATE_USERNAME_REQUEST} from '../store/actions/auth'
   import { mapGetters } from 'vuex'
 
   export default {
     name: 'Register',
     data () {
       return {
+        username: '',
+        emptyUsername: false,
         registerForm: {
           email: '',
           username: '',
@@ -125,7 +168,7 @@
       }
     },
     computed: {
-      ...mapGetters(['authStatus']),
+      ...mapGetters(['authStatus', 'getProfile']),
       loading: function () {
         return this.authStatus === 'loading' && !this.isAuthenticated
       },
@@ -148,15 +191,71 @@
           access_token: 'tmFvgF4emDrvCpXuE3bvIW6GKuUVBaBo',
         };
 
-        this.$store.dispatch(REGISTER_REQUEST, user).then((resp) => {
+        this.$store.dispatch(REGISTER_REQUEST, user).then(() => {
           const slider = document.getElementsByClassName('slider')[0];
           slider.style.right = 0;
-          if(!resp.data.user.isEmailConfirmed) {
-
-          }
           this.$router.push('/home')
+        }).catch(() =>  this.$notify({
+          type: 'error',
+          title: 'Error',
+          text: 'This email is already used, please choose another one',
+          duration: 5000,
+        }));
+      },
+      saveUsername() {
+        if (this.username === '') {
+          this.emptyUsername = true;
+        }
+        else {
+          this.$store.dispatch(UPDATE_USERNAME_REQUEST, { username: this.username, id: this.getProfile.id }).then(() => {
+            this.$router.push('/home')
+          });
+        }
+      },
+
+      onSuccess(googleUser) {
+        console.log('Logged in as: ' + googleUser.getBasicProfile().getName());
+        console.log('Logged in as: ' + googleUser.getBasicProfile().getEmail());
+        this.$store.dispatch(GOOGLE_AUTH_REQUEST, googleUser.getBasicProfile().getEmail()).then((resp) => {
+          console.log('resp', resp);
+          if(!resp.data.user.username) {
+            const slider = document.getElementsByClassName('usernameSlider')[0];
+            slider.style.right = 0;
+          } else {
+            this.$router.push('/home')
+          }
+        }).catch(() =>  this.$notify({
+          type: 'error',
+          title: 'Error',
+          text: 'Sorry, an error occurred, please retry',
+        }))
+      },
+      onFailure(error) {
+        console.log(error);
+      },
+      renderButton() {
+        gapi.signin2.render('my-signin2', {
+          'scope': 'profile email',
+          'width': 300,
+          'height': 50,
+          'longtitle': true,
+          'theme': 'dark',
+          'onsuccess': this.onSuccess,
+          'onfailure': this.onFailure
         });
       },
+      googleSignOut() {
+        if(gapi.auth2) {
+          const auth2 = gapi.auth2.getAuthInstance();
+          auth2.signOut().then(function () {
+            console.log('User signed out.');
+          });
+        }
+      }
+    },
+    mounted: function () {
+      this.googleSignOut();
+      this.renderButton();
     },
   }
 </script>
@@ -223,9 +322,6 @@
     font-size: large;
     text-align: left !important;
   }
-  /*.registerContainer:hover .slider {*/
-    /*right:0;*/
-  /*}*/
   .logo {
     margin-top: 5%;
     width: 70px;
@@ -233,5 +329,47 @@
   }
   .email {
     color: #42b983;
+  }
+
+  .usernameButton {
+    cursor: pointer;
+    color: white;
+    background-color: #41B883;
+  }
+
+  #my-signin2 {
+    margin: 8% auto 3% auto;
+    width: 300px;
+  }
+
+  .usernameSlider {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    right: -100%;
+    background-color: white;
+    color: black;
+    transition:1s ease;
+    text-align: center;
+  }
+
+  .thanksText {
+    margin-bottom: 2%;
+  }
+  .usernameSlider h1 {
+    font-size: x-large;
+  }
+
+  .confirmationText {
+    width: 75%;
+    margin: auto;
+    font-size: large;
+    text-align: left;
+  }
+
+  .modalLogo {
+    margin-top: 5%;
+    width: 70px;
   }
 </style>

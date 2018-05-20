@@ -9,6 +9,8 @@ import Icon from 'vue-awesome'
 import Notifications from 'vue-notification'
 import VueHeadful from 'vue-headful'
 import VeeValidate from 'vee-validate';
+import AOS from 'aos'
+import 'aos/dist/aos.css'
 
 Vue.use(Viewer);
 Vue.use(VModal);
@@ -28,5 +30,8 @@ new Vue({
   el: '#app',
   router,
   store,
+  created () {
+    AOS.init()
+  },
   render: h => h(App)
 });

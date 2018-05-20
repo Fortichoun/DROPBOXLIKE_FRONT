@@ -1,5 +1,18 @@
 /* eslint-disable promise/param-names */
-import { AUTH_REQUEST, REGISTER_REQUEST, AUTH_ERROR, AUTH_SUCCESS, AUTH_LOGOUT, GETUSER_REQUEST, USER_ERROR, USER_SUCCESS, CONFIRM_EMAIL_REQUEST} from '../actions/auth'
+import {
+  AUTH_REQUEST,
+  GOOGLE_AUTH_REQUEST,
+  REGISTER_REQUEST,
+  AUTH_ERROR,
+  AUTH_SUCCESS,
+  AUTH_LOGOUT,
+  GETUSER_REQUEST,
+  USER_ERROR,
+  USER_SUCCESS,
+  CONFIRM_EMAIL_REQUEST,
+  UPDATE_USERNAME_REQUEST,
+  USERNAME_UPDATED
+} from '../actions/auth'
 import axios from 'axios';
 
 const backendPath = 'http://localhost';
@@ -43,6 +56,28 @@ const actions = {
         })
     })
   },
+  [GOOGLE_AUTH_REQUEST]: ({commit, dispatch}, email) => {
+    return new Promise((resolve, reject) => {
+      commit(AUTH_REQUEST);
+      axios.post(`${backendPath}:${backendPort}/api/auth/googleLogin`,
+        {email: email}
+      )
+        .then(resp => {
+          localStorage.setItem('user-token', resp.data.token);
+          localStorage.setItem('user-confirmed', resp.data.user.isEmailConfirmed.toString());
+          axios.defaults.headers.common['Authorization'] = 'Bearer ' + resp.data.token;
+          commit(AUTH_SUCCESS, resp);
+          resolve(resp)
+        })
+        .catch(err => {
+          commit(AUTH_ERROR, err);
+          localStorage.removeItem('user-token');
+          localStorage.removeItem('user-confirmed');
+          reject(err)
+        })
+    })
+  },
+
   [REGISTER_REQUEST]: ({commit}, user) => {
     return new Promise((resolve, reject) => {
       commit(REGISTER_REQUEST);
@@ -110,6 +145,24 @@ const actions = {
         })
     })
   },
+  [UPDATE_USERNAME_REQUEST]: ({commit, dispatch}, user) => {
+    return new Promise((resolve, reject) => {
+      commit(AUTH_REQUEST);
+      axios.put(`${backendPath}:${backendPort}/api/users/${user.id}`,
+        { username: user.username }
+      )
+        .then(resp => {
+          commit(USERNAME_UPDATED, resp);
+          resolve(resp)
+        })
+        .catch(err => {
+          commit(AUTH_ERROR, err);
+          localStorage.removeItem('user-token');
+          localStorage.removeItem('user-confirmed');
+          reject(err)
+        })
+    })
+  },
 };
 
 const mutations = {
@@ -130,7 +183,8 @@ const mutations = {
   [AUTH_LOGOUT]: (state) => {
     state.token = '';
     state.isUserConfirmed = '';
-    state.user = ''
+    state.user = '';
+    state.status = ''
   },
   [GETUSER_REQUEST]: (state) => {
     state.status = 'loading'
@@ -145,6 +199,9 @@ const mutations = {
   [CONFIRM_EMAIL_REQUEST]: (state) => {
     state.status = 'loading'
   },
+  [USERNAME_UPDATED]: (state, resp) => {
+    state.user = resp.data;
+  }
 };
 
 export default {

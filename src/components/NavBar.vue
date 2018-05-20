@@ -117,7 +117,7 @@
       width="60%"
       height="auto"
       :scrollable=true
-      classes="v--modal"
+      @before-close="beforeClose"
     >
       <Login/>
     </modal>
@@ -126,7 +126,7 @@
       height="auto"
       name="registerModal"
       :scrollable=true
-      classes="v--modal"
+      @before-close="beforeClose"
     >
       <Register/>
     </modal>
@@ -156,21 +156,16 @@
     },
     methods: {
       openLoginModal() {
-        this.$modal.show('loginModal', {
-          buttons: [
-            {
-              title: 'CLOSE',
-              handler: () => {
-                this.$modal.hide('loginModal')
-              }
-            },
-          ]
-        });
+        this.$modal.show('loginModal');
+        console.log(this);
+        // this.$modal.toggle('loginModal', {clickToClose: 'false'});
+
       },
       openRegisterModal() {
         this.$modal.show('registerModal');
       },
       logout() {
+        this.googleSignOut();
         this.$store.dispatch(AUTH_LOGOUT).then(() => this.$router.push('/'))
       },
       getHomePage() {
@@ -185,9 +180,35 @@
       chooseFile() {
         document.getElementById('uploadFile').click();
       },
-      toggleBurger(burger) {
+      toggleBurger() {
         document.querySelector('.navbar-burger').classList.toggle('is-active');
         document.querySelector('.navbar-menu').classList.toggle('is-active');
+      },
+      googleSignOut() {
+        if(gapi.auth2) {
+          const auth2 = gapi.auth2.getAuthInstance();
+          auth2.signOut().then(function () {
+            console.log('User signed out.');
+          });
+        }
+      },
+      beforeClose(event) {
+        console.log('username', this.getUsername);
+        console.log('profile', this.getProfile);
+        if (this.getProfile !== '' && this.getUsername === undefined) {
+          event.stop();
+          document.getElementsByTagName('html')[0].classList.add('v--modal-block-scroll');
+          document.getElementsByTagName('body')[0].classList.add('v--modal-block-scroll');
+          this.$notify({
+            type: 'error',
+            title: 'Error',
+            text: 'Please tell us your username before quitting',
+            duration: 5000,
+          })
+        } else {
+          document.getElementsByTagName('html')[0].classList.remove('v--modal-block-scroll');
+          document.getElementsByTagName('body')[0].classList.remove('v--modal-block-scroll');
+        }
       }
     },
   }

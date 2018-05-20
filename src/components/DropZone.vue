@@ -12,7 +12,7 @@
           multiple
           :name="uploadFieldName"
           :disabled="isSaving"
-          @change="filesChange($event.target.name, $event.target.files); fileCount = $event.target.files.length"
+          @change="filesChange($event, $event.target.files); fileCount = $event.target.files.length"
           class="input-file"
           title="You can drop files here"
         >
@@ -68,7 +68,7 @@ export default {
     save(formData) {
       // upload data to the server
       this.currentStatus = STATUS_SAVING;
-
+      this.$parent.loading = true;
       this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/upload`,
           formData,
         {params: {userFolder: this.userFolder, path: this.path}}
@@ -77,24 +77,37 @@ export default {
         this.uploadedFiles = [].concat(x);
         this.currentStatus = STATUS_SUCCESS;
         this.$parent.getFilesInCurrentFolder();
+        this.$parent.loading = false;
         })
       .catch(err => {
         this.uploadError = err.response;
         this.currentStatus = STATUS_FAILED;
+        this.$parent.loading = false;
       });
     },
-    filesChange(fieldName, fileList) {
+    filesChange(event, fileList) {
       // handle file changes
       const formData = new FormData();
+      let filesSizeToUpload = 0;
 
       if (!fileList.length) return;
 
       // append the files to FormData
       for(const key in fileList){
+        filesSizeToUpload += event.target.files[key].size || 0;
         formData.append('file', event.target.files[key]);
       }
-      // save it
-      this.save(formData);
+      if(filesSizeToUpload  / 1024 / 1024 / 1024 < this.$parent.folderSize) {
+        // save it
+        this.save(formData);
+      } else {
+        this.$parent.$notify({
+          type: 'error',
+          title: 'Size limit',
+          text: 'Sorry, you can\'t store more than 30GB with this account.',
+          duration: 8000,
+        })
+      }
     }
   },
   mounted() {

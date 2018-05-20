@@ -6,7 +6,10 @@
       description="SupFiles"
     />
     <div class="body">
-      <div class="loading">
+      <div
+        class="loading"
+        :class="{'iconVisible': loading}"
+      >
         <icon
           v-if="loading"
           name="hourglass"
@@ -24,7 +27,20 @@
           <button @click="moveToFolderInTreePath(folder.folderPath)">{{ folder.folderName }}</button>
         </li>
       </ul>
-      <h1 class="currentFolder">{{ currentFolder }}</h1>
+      <div class="columns is-mobile is-multiline">
+        <h1 class="currentFolder column is-8 is-offset-2">{{ currentFolder }}</h1>
+        <radial-progress-bar
+          class=""
+          :diameter="200"
+          :completed-steps="folderSize"
+          :total-steps="30"
+          :strokeWidth="25"
+          :startColor="startColor"
+          :stopColor="startColor"
+        >
+          <p>{{folderSize}} GB Free</p>
+        </radial-progress-bar>
+      </div>
       <div v-if="uploadedFiles.length !== 0">
         <table id="fileList">
           <tr>
@@ -44,7 +60,7 @@
               >
                 <drag
                   :transfer-data="file"
-                  :image="require('../assets/folderIcon.png')"
+                  :image="require('../assets/file-plus-one.png')"
                   @dragstart="over = true"
                   @dragend="over = false"
                   class="height100"
@@ -88,7 +104,7 @@
               >
                 <drag
                   :transfer-data="file"
-                  :image="require('../assets/folderIcon.png')"
+                  :image="require('../assets/file-plus-one.png')"
                   @dragstart="over = true"
                   @dragend="over = false"
                   class="height100"
@@ -138,20 +154,28 @@
         </table>
       </div>
       <div
-        v-if="uploadedFiles.length === 0 && currentFolder !== 'SupFiles Home'"
+        v-if="uploadedFiles.length === 0 && currentFolder !== 'SupFiles Home' && !loading"
         class="noFile"
       >
         There is currently no file in this folder.
       </div>
       <div
-        v-if="uploadedFiles.length === 0 && currentFolder === 'SupFiles Home'"
+        v-if="uploadedFiles.length === 0 && currentFolder === 'SupFiles Home' && !loading"
         class="noFile"
       >
-        There is currently no file in this folder. Home
+        <p>
+          There is currently no file in your SupFiles' folder.
+        </p>
+        <p>
+          You can now start to drop some files in this window !
+        </p>
+        <icon
+          name="long-arrow-alt-down"
+          scale="3"
+          class="noFileIcon"
+        />
       </div>
       <modal
-        :resizable=true
-        :draggable=true
         :width="1280"
         name="videoModal"
         height="auto"
@@ -165,6 +189,14 @@
           />
         </div>
       </modal>
+      <modal
+        width="80%"
+        height="auto"
+        name="linkModal"
+        :scrollable=true
+      >
+        <ShareLink :title="linkToShare"/>
+      </modal>
       <notifications position="bottom right"/>
     </div>
   </div>
@@ -176,9 +208,11 @@
   import { mixin as clickaway } from 'vue-clickaway';
   import DropZone from './DropZone.vue'
   import NavBar from './NavBar.vue'
+  import ShareLink from './ShareLink.vue'
   import { Drag, Drop } from 'vue-drag-drop';
   import ClickOutside from 'vue-click-outside'
   import download from 'downloadjs'
+  import RadialProgressBar from 'vue-radial-progress'
 
   export default {
     name: 'Home',
@@ -195,6 +229,9 @@
         newFileNumber: -1,
         video: '',
         loading: false,
+        linkToShare: '',
+        folderSize: 0,
+        startColor: '#42b983'
       }
     },
     components: {
@@ -202,6 +239,8 @@
       Drag,
       Drop,
       NavBar,
+      ShareLink,
+      RadialProgressBar,
     },
     computed: {
       ...mapGetters(['isProfileLoaded', 'isAuthenticated', 'authStatus', 'getProfile']),
@@ -234,9 +273,6 @@
       },
 
       handleClickOnRow(event, key, {filename, isFolder, imageBuffer, isVideo}) {
-        // console.log('handleClickOnRow', event);
-        // console.log('eveeeeent.target.className', event.target.className);
-        // console.log('eveeeeent.target.classList', event.target.classList);
         if (event.target.className !== 'contextMenu' &&
           event.target.className !== 'navButton' &&
           event.target.className !== 'nav' &&
@@ -246,14 +282,6 @@
           if (isVideo) {
             this.video = filename;
             this.$modal.show('videoModal');
-
-            // this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/video',
-            //   { params: { userFolder: this.userFolder, path: this.path, videoName: filename } }
-            // )
-            //   .then(response => {
-            //     source.src += response.data;
-            //   });
-            // source.src = `${this.$backendPath}:${this.$backendPort}/api/file/video?userFolder=' + this.userFolder + '&path=' + this.path + '&videoName=' + 'Hello'
           }
           else if (imageBuffer) {
             this.displayPicture(key)
@@ -281,23 +309,29 @@
       },
 
       processFile(event) {
-        for(const key in event.target.files){
-          this.postFormData.append('file', event.target.files[key]);
-        }
         this.loading = true;
-        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/upload`,
-          this.postFormData,
-          {params: {userFolder: this.userFolder, path: this.path}}
-        )
-          .then(() => this.getFilesInCurrentFolder());
-      },
+        let filesSizeToUpload = 0;
+        for(const key in event.target.files){
+          filesSizeToUpload += event.target.files[key].size || 0;
+          this.postFormData.append('file', event.target.files[key]);
 
-//      uploadFiles: function() {
-//        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/upload',
-//          this.postFormData,
-//          {params: {userFolder: this.userFolder, path: this.path}}
-//        );
-//      },
+        }
+        if(filesSizeToUpload  / 1024 / 1024 / 1024 < this.folderSize) {
+          this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/upload`,
+            this.postFormData,
+            {params: {userFolder: this.userFolder, path: this.path}}
+          )
+            .then(() => this.getFilesInCurrentFolder());
+        } else {
+          this.loading = false;
+          this.$notify({
+            type: 'error',
+            title: 'Size limit',
+            text: 'Sorry, you can\'t store more than 30GB with this account.',
+            duration: 8000,
+          })
+        }
+      },
 
       removeFile: function(filename) {
         this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/remove`,
@@ -307,7 +341,6 @@
       },
 
       downloadFile: function(file) {
-        //TODO TEST WITH AXIOS
         this.axios.post(
           `${this.$backendPath}:${this.$backendPort}/api/file/download`,
           { userFolder: this.userFolder,
@@ -317,27 +350,13 @@
           },
           {responseType: 'arraybuffer'}
         )
-        // this.axios.get(
-        //   `${this.$backendPath}:${this.$backendPort}/api/file/download`,
-        //   { query: { userFolder: this.userFolder,
-        //     path: this.path,
-        //     filename: file.filename,
-        //     isFolder: file.isFolder,
-        //   } },
-        //   {responseType: 'arraybuffer'}
-        // )
           .then(function (response) {
             let filename = file.filename;
-            console.log('response', response);
             const blob = new Blob([response.data],{type:response.headers['content-type']});
-            // const link = document.createElement('a');*
             if (response.headers['content-type'] === 'application/zip') {
               filename += '.zip';
             }
             download(blob, filename);
-            // link.href = window.URL.createObjectURL(blob);
-            // link.download = file.filename;
-            // link.click();
           });
       },
 
@@ -366,16 +385,6 @@
         this.uploadedFiles.push({ filename: '', isFolder: true });
         const inputNumber = this.uploadedFiles.length - 1;
         this.newFileNumber = inputNumber;
-
-
-//        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/newFolder',
-//          {userFolder: this.userFolder, path: this.path, folderName: this.folderName}
-//        )
-//          .then(() => {
-//            this.folderName = '';
-//            this.getFolderTreePath();
-//            return this.getFilesInCurrentFolder();
-//          });
       },
 
       getFilesInCurrentFolder: function() {
@@ -385,6 +394,7 @@
           )
             .then(response => {
               this.uploadedFiles = response.data;
+              this.getFolderSize();
             });
         }
         else if (!this.isProfileLoaded) {
@@ -394,6 +404,7 @@
             )
               .then(response => {
                 this.uploadedFiles = response.data;
+                this.getFolderSize();
               });
           });
         }
@@ -419,17 +430,19 @@
         this.path === '' ?
           this.$router.push({ name: 'home' }) :
           this.$router.push({ path: '/home/' + this.path.replace("%2F", "/")});
-//          this.$router.push({ name: 'home', params: { path: this.path.replace("%2F", "/") } });
         this.getFilesInCurrentFolder();
         this.getFolderTreePath();
       },
 
       getFolderSize: function () {
-        this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/folderSize`,
-          { params: { userFolder: this.userFolder } }
-        );
-          // .then(response => {
-          // });
+        if (this.isProfileLoaded) {
+          this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/folderSize`,
+            { params: { userFolder: this.userFolder } }
+          )
+            .then(response => {
+              this.folderSize = Number((30 - (response.data.folderSize / 1024 / 1024 / 1024)).toFixed(2));
+            });
+        }
       },
 
       moveFile: function(sourceFile, destinationFile) {
@@ -459,16 +472,7 @@
         if (fileExtension.length !== 0) selectionRange -= 1;
         inputToFocus.focus();
         inputToFocus.setSelectionRange(0, selectionRange);
-        // inputToFocus.select();
         this.newFileNumber = -1;
-//        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/rename',
-//          { userFolder: this.userFolder,
-//            path: this.path,
-//            filename,
-//            newFileName: this.folderName
-//          }
-//        )
-//          .then(() => this.getFilesInCurrentFolder());
       },
 
       createLink: function(filename) {
@@ -478,8 +482,9 @@
         )
           .then((result) => {
             //TODO CREATE LINK TO SHARE
-            const linkToShare = `${this.$backendPath}:${this.$backendPort}/api/file/getSharedFile/${result.data.linkHash}`;
-            return linkToShare;
+            this.linkToShare = `${this.$backendPath}:${this.$backendPort}/api/file/getSharedFile/${result.data.linkHash}`;
+            this.$modal.show('linkModal');
+            // return linkToShare;
           });
       },
 
@@ -559,8 +564,13 @@
           duration: 5000,
         })
       }
+      document.getElementsByTagName('html')[0].classList.remove('v--modal-block-scroll');
+      document.getElementsByTagName('body')[0].classList.remove('v--modal-block-scroll');
     },
 
+    // created: function () {
+    //   this.loading = true;
+    // },
     updated: function() {
       if (this.newFileNumber !== -1) {
           this.renameFile(this.newFileNumber);
@@ -569,13 +579,15 @@
   }
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
+<style>
   html, body {
     margin: 0;
     width: 100%;
     height: 100%;
   }
+</style>
+
+<style scoped>
   ul {
     list-style-type: none;
     padding: 0;
@@ -653,6 +665,10 @@
     color: #42b983;
   }
 
+  .noFileIcon {
+    animation: float 1s ease-in-out infinite;
+  }
+
   .tdContext {
     text-align: center;
     vertical-align: center;
@@ -705,7 +721,7 @@
 
   .contextMenu {
     position: relative;
-    border: 2px solid white;
+    border: 2px solid rgba(0, 0, 0, 0);
     width: 40px;
     height: 40px;
     vertical-align: middle;
@@ -797,6 +813,7 @@
     margin-left: 5px;
   }
   .loading {
+    z-index: -100;
     width: 15%;
     height: 15%;
     position: fixed;
@@ -808,6 +825,10 @@
     width: 100%;
     height: 100%;
     color: dodgerblue;
+  }
+  .iconVisible {
+    display: block;
+    z-index: 100000;
   }
   .height100 {
     height: 100%;
@@ -850,8 +871,25 @@
     margin-top: 3%;
     font-size: 300%;
     text-align: center;
+    /*width: 100%;*/
   }
   .body {
     padding-top: 6%;
+  }
+
+  @keyframes float {
+    0% {
+      transform: translatey(0px);
+    }
+    50% {
+      transform: translatey(20px);
+    }
+    100% {
+      transform: translatey(0px);
+    }
+  }
+
+  .radial-progress-container {
+    margin: 0 auto;
   }
 </style>
