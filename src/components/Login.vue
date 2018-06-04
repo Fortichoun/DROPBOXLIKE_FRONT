@@ -64,22 +64,14 @@
           class="button formButton"
           type="submit"
         >
-          <span class="icon">
-            <icon name="check"/>
-          </span>
-          <span>Login</span>
+        <span class="icon">
+          <icon name="check"/>
+        </span>
+        <span>Login</span>
         </button>
       </form>
       <br />
-
       <div id='my-signin2'/>
-      <!--<facebook-login class="button"-->
-        <!--appId="2223755347852016"-->
-        <!--@login="getUserData"-->
-        <!--@logout="onLogout"-->
-        <!--@get-initial-status="getUserData">-->
-      <!--</facebook-login>-->
-      <!--<div class="fb-login-button" data-max-rows="1" data-size="large" data-button-type="login_with" data-show-faces="false" data-auto-logout-link="false" data-use-continue-as="true"></div>    <notifications position="bottom right"/>-->
     </div>
     <div class="usernameSlider">
       <h1>ONE LAST STEP !</h1>
@@ -116,7 +108,7 @@
         </form>
       </div>
       <img
-        src="../assets/supfiles-logo.png"
+        src="../assets/supfiles.png"
         alt="SupFiles"
         class="modalLogo"
       >
@@ -125,7 +117,7 @@
 </template>
 
 <script>
-  import {AUTH_REQUEST, GOOGLE_AUTH_REQUEST, UPDATE_USERNAME_REQUEST} from '../store/actions/auth'
+  import {AUTH_REQUEST, GOOGLE_AUTH_REQUEST, UPDATE_USER_REQUEST} from '../store/actions/auth'
   import { mapGetters } from 'vuex'
   import facebookLogin from 'facebook-login-vuejs';
 
@@ -153,17 +145,6 @@
     mounted: function () {
       this.googleSignOut();
       this.renderButton();
-
-      // VueScript2.load('https://apis.google.com/js/platform.js').then(function () {
-      // });
-      // VueScript2.load('https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v3.0').then(function () {
-        // FB.Event.subscribe('xfbml.render', function () {
-        //   console.log("finished rendering plugins");
-        //   var spinner = document.getElementById("spinner");
-        //   spinner.removeAttribute("style");
-        //   spinner.removeChild(spinner.childNodes[0]);
-        // });
-      // });
     },
     methods: {
       validateBeforeSubmit() {
@@ -197,17 +178,14 @@
           this.emptyUsername = true;
         }
         else {
-          this.$store.dispatch(UPDATE_USERNAME_REQUEST, { username: this.username, id: this.getProfile.id }).then(() => {
+          this.$store.dispatch(UPDATE_USER_REQUEST, { username: this.username, id: this.getProfile.id }).then(() => {
             this.$router.push('/home')
           });
         }
       },
 
       onSuccess(googleUser) {
-        console.log('Logged in as: ' + googleUser.getBasicProfile().getName());
-        console.log('Logged in as: ' + googleUser.getBasicProfile().getEmail());
         this.$store.dispatch(GOOGLE_AUTH_REQUEST, googleUser.getBasicProfile().getEmail()).then((resp) => {
-          // console.log('hey', this.$parent.$modal.toggle('loginModal', {clickToClose: false}));
           if(!resp.data.user.username) {
             const slider = document.getElementsByClassName('usernameSlider')[0];
             slider.style.right = 0;
@@ -219,9 +197,6 @@
             title: 'Error',
           text: 'Sorry, an error occurred, please retry',
         }))
-      },
-      onFailure(error) {
-        console.log(error);
       },
       renderButton() {
         gapi.signin2.render('my-signin2', {
@@ -237,64 +212,12 @@
       googleSignOut() {
         if(gapi.auth2) {
           const auth2 = gapi.auth2.getAuthInstance();
-          auth2.signOut().then(function () {
-            console.log('User signed out.');
-          });
+          auth2.signOut();
         }
       }
     },
   }
-  // var finished_rendering = function() {
-  //   console.log("finished rendering plugins");
-  //   var spinner = document.getElementById("spinner");
-  //   spinner.removeAttribute("style");
-  //   spinner.removeChild(spinner.childNodes[0]);
-  // }
-  // // window.onbeforeunload = function(e){
-  // //   gapi.auth2.getAuthInstance().signOut().then(function () {
-  // //     console.log('User signed out.');
-  // //   });
-  // // };
-  // window.fbAsyncInit = function() {
-  //   FB.init({
-  //     appId      : '2223755347852016',
-  //     cookie     : true,
-  //     xfbml      : true,
-  //     version    : 'v3.0'
-  //   });
-  //
-  //   FB.AppEvents.logPageView();
-  //
-  //   FB.getLoginStatus(function(response) {
-  //     statusChangeCallback(response);
-  //   });
-  // };
-  //
-  // (function(d, s, id){
-  //   var js, fjs = d.getElementsByTagName(s)[0];
-  //   if (d.getElementById(id)) {return;}
-  //   js = d.createElement(s); js.id = id;
-  //   js.src = "https://connect.facebook.net/en_US/sdk.js";
-  //   fjs.parentNode.insertBefore(js, fjs);
-  // }(document, 'script', 'facebook-jssdk'));
-  //
-  // function statusChangeCallback(response) {
-  //   console.log('statusChangeCallback');
-  //   console.log(response);
-  //   // The response object is returned with a status field that lets the
-  //   // app know the current login status of the person.
-  //   // Full docs on the response object can be found in the documentation
-  //   // for FB.getLoginStatus().
-  //   if (response.status === 'connected') {
-  //     // Logged into your app and Facebook.
-  //     console.log('connected');
-  //   } else {
-  //     // The person is not logged into your app or we are unable to tell.
-  //     console.log('please log in');
-  //     // document.getElementById('status').innerHTML = 'Please log ' +
-  //     //   'into this app.';
-  //   }
-  // }
+
 </script>
 
 <style scoped>

@@ -85,8 +85,6 @@
                   <icon name="sign-out-alt"/>
                 </span>
               </a>
-            </p>
-            <p class="control">
               <a
                 v-if="!isUserConfirmed"
                 class="button navButton"
@@ -101,6 +99,16 @@
                 v-if="isUserConfirmed"
                 class="button navButton"
                 @click="getHomePage"
+              >
+                <span>Home</span>
+                <span class="icon">
+                  <icon name="home"/>
+                </span>
+              </a>
+              <a
+                v-if="isUserConfirmed"
+                class="button navButton"
+                @click="openProfileModal"
               >
                 <span>{{getUsername}}</span>
                 <span class="icon">
@@ -130,12 +138,21 @@
     >
       <Register/>
     </modal>
+    <modal
+      width="60%"
+      height="auto"
+      name="profileModal"
+      :scrollable=true
+    >
+      <Profile/>
+    </modal>
   </nav>
 </template>
 
 <script>
   import Login from './Login.vue'
   import Register from './Register.vue'
+  import Profile from './Profile.vue'
   import { mapGetters } from 'vuex'
   import {AUTH_LOGOUT} from '../store/actions/auth'
 
@@ -143,7 +160,8 @@
     name: "NavBar",
     components: {
       Login,
-      Register
+      Register,
+      Profile
     },
     computed: {
       ...mapGetters(['isAuthenticated', 'isEmailConfirmed', 'getProfile']),
@@ -157,19 +175,23 @@
     methods: {
       openLoginModal() {
         this.$modal.show('loginModal');
-        console.log(this);
-        // this.$modal.toggle('loginModal', {clickToClose: 'false'});
-
       },
       openRegisterModal() {
         this.$modal.show('registerModal');
+      },
+      openProfileModal() {
+        this.$modal.show('profileModal');
       },
       logout() {
         this.googleSignOut();
         this.$store.dispatch(AUTH_LOGOUT).then(() => this.$router.push('/'))
       },
       getHomePage() {
-        this.$router.push('/home')
+        if(this.$route.name === 'welcome') {
+          this.$router.push('/home');
+        } else if (this.$route.name === 'home'){
+          this.$parent.moveToFolderInTreePath('');
+        }
       },
       newFolder() {
         this.$parent.createFolder();
@@ -187,14 +209,10 @@
       googleSignOut() {
         if(gapi.auth2) {
           const auth2 = gapi.auth2.getAuthInstance();
-          auth2.signOut().then(function () {
-            console.log('User signed out.');
-          });
+          auth2.signOut();
         }
       },
       beforeClose(event) {
-        console.log('username', this.getUsername);
-        console.log('profile', this.getProfile);
         if (this.getProfile !== '' && this.getUsername === undefined) {
           event.stop();
           document.getElementsByTagName('html')[0].classList.add('v--modal-block-scroll');

@@ -6,12 +6,12 @@ import {
   AUTH_ERROR,
   AUTH_SUCCESS,
   AUTH_LOGOUT,
-  GETUSER_REQUEST,
+  GET_USER_REQUEST,
   USER_ERROR,
   USER_SUCCESS,
   CONFIRM_EMAIL_REQUEST,
-  UPDATE_USERNAME_REQUEST,
-  USERNAME_UPDATED
+  UPDATE_USER_REQUEST,
+  USER_UPDATED
 } from '../actions/auth'
 import axios from 'axios';
 
@@ -107,9 +107,9 @@ const actions = {
       resolve()
     })
   },
-  [GETUSER_REQUEST]: ({commit, dispatch}) => {
+  [GET_USER_REQUEST]: ({commit, dispatch}) => {
     return new Promise((resolve, reject) => {
-      commit(GETUSER_REQUEST);
+      commit(GET_USER_REQUEST);
       axios.defaults.headers.common['Authorization'] = 'Bearer ' + state.token;
       axios.get(`${backendPath}:${backendPort}/api/users/me`)
         .then(resp => {
@@ -118,7 +118,6 @@ const actions = {
         })
         .catch(resp => {
           commit(USER_ERROR);
-          // if resp is unauthorized, logout, to
           dispatch(AUTH_LOGOUT);
           reject(resp)
         })
@@ -145,14 +144,14 @@ const actions = {
         })
     })
   },
-  [UPDATE_USERNAME_REQUEST]: ({commit, dispatch}, user) => {
+  [UPDATE_USER_REQUEST]: ({commit, dispatch}, user) => {
     return new Promise((resolve, reject) => {
       commit(AUTH_REQUEST);
       axios.put(`${backendPath}:${backendPort}/api/users/${user.id}`,
-        { username: user.username }
+        user
       )
         .then(resp => {
-          commit(USERNAME_UPDATED, resp);
+          commit(USER_UPDATED, resp);
           resolve(resp)
         })
         .catch(err => {
@@ -186,7 +185,7 @@ const mutations = {
     state.user = '';
     state.status = ''
   },
-  [GETUSER_REQUEST]: (state) => {
+  [GET_USER_REQUEST]: (state) => {
     state.status = 'loading'
   },
   [USER_SUCCESS]: (state, resp) => {
@@ -199,7 +198,7 @@ const mutations = {
   [CONFIRM_EMAIL_REQUEST]: (state) => {
     state.status = 'loading'
   },
-  [USERNAME_UPDATED]: (state, resp) => {
+  [USER_UPDATED]: (state, resp) => {
     state.user = resp.data;
   }
 };

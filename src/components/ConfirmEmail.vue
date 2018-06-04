@@ -8,7 +8,6 @@
   export default {
       name: "ConfirmEmail",
       mounted() {
-        console.log('this.$route.params.hash', this.$route.params.hash);
         this.$store.dispatch(CONFIRM_EMAIL_REQUEST, this.$route.params.hash)
           .then(() => this.$router.push({ name: 'home', params: { isEmailConfirmed: true }}))
           .catch(() => this.$router.push({ name: 'welcome', params: { isEmailConfirmed: false }}))

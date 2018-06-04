@@ -102,7 +102,7 @@
         <p>Please confirm your email before you can use our services.</p>
       </div>
       <img
-        src="../assets/supfiles-logo.png"
+        src="../assets/supfiles.png"
         alt="SupFiles"
         class="logo"
       >
@@ -142,7 +142,7 @@
         </form>
       </div>
       <img
-        src="../assets/supfiles-logo.png"
+        src="../assets/supfiles.png"
         alt="SupFiles"
         class="modalLogo"
       >
@@ -151,7 +151,7 @@
 </template>
 
 <script>
-  import {REGISTER_REQUEST, GOOGLE_AUTH_REQUEST, UPDATE_USERNAME_REQUEST} from '../store/actions/auth'
+  import {REGISTER_REQUEST, GOOGLE_AUTH_REQUEST, UPDATE_USER_REQUEST} from '../store/actions/auth'
   import { mapGetters } from 'vuex'
 
   export default {
@@ -207,17 +207,14 @@
           this.emptyUsername = true;
         }
         else {
-          this.$store.dispatch(UPDATE_USERNAME_REQUEST, { username: this.username, id: this.getProfile.id }).then(() => {
+          this.$store.dispatch(UPDATE_USER_REQUEST, { username: this.username, id: this.getProfile.id }).then(() => {
             this.$router.push('/home')
           });
         }
       },
 
       onSuccess(googleUser) {
-        console.log('Logged in as: ' + googleUser.getBasicProfile().getName());
-        console.log('Logged in as: ' + googleUser.getBasicProfile().getEmail());
         this.$store.dispatch(GOOGLE_AUTH_REQUEST, googleUser.getBasicProfile().getEmail()).then((resp) => {
-          console.log('resp', resp);
           if(!resp.data.user.username) {
             const slider = document.getElementsByClassName('usernameSlider')[0];
             slider.style.right = 0;
@@ -229,9 +226,6 @@
           title: 'Error',
           text: 'Sorry, an error occurred, please retry',
         }))
-      },
-      onFailure(error) {
-        console.log(error);
       },
       renderButton() {
         gapi.signin2.render('my-signin2', {
@@ -247,9 +241,7 @@
       googleSignOut() {
         if(gapi.auth2) {
           const auth2 = gapi.auth2.getAuthInstance();
-          auth2.signOut().then(function () {
-            console.log('User signed out.');
-          });
+          auth2.signOut();
         }
       }
     },
@@ -293,6 +285,7 @@
     width: 100%;
   }
   .formButton {
+    margin-bottom: 8%;
     float: right;
     cursor: pointer;
     color: white;

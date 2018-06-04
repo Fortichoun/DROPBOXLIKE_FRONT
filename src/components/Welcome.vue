@@ -109,7 +109,7 @@
 
 <script>
   import NavBar from './NavBar.vue'
-  import {GETUSER_REQUEST} from '../store/actions/auth'
+  import {GET_USER_REQUEST} from '../store/actions/auth'
   import { mapGetters } from 'vuex'
   import Register from './Register.vue'
 
@@ -124,7 +124,7 @@
     },
     mounted: function () {
       if(this.isAuthenticated) {
-        this.$store.dispatch(GETUSER_REQUEST);
+        this.$store.dispatch(GET_USER_REQUEST);
       }
 
       if(this.$route.params.isEmailConfirmed === false) {

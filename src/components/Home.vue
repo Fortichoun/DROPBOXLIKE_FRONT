@@ -61,8 +61,8 @@
                 <drag
                   :transfer-data="file"
                   :image="require('../assets/file-plus-one.png')"
-                  @dragstart="over = true"
-                  @dragend="over = false"
+                  @dragstart="dragStart(key)"
+                  @dragend="dragEnd(key)"
                   class="height100"
                 >
                   <icon
@@ -97,16 +97,19 @@
                 </drag>
               </drop>
             </td>
-            <td :class="{tdContext: true, over: file.isFolder && over}">
+            <td
+              :class="{over: file.isFolder && over}"
+              class="tdContext"
+            >
               <drop
                 class="drop"
                 @drop="(data) => handleDrop(key, data)"
               >
                 <drag
                   :transfer-data="file"
-                  :image="require('../assets/file-plus-one.png')"
-                  @dragstart="over = true"
-                  @dragend="over = false"
+                  image="require('../assets/file-plus-one.png')"
+                  @dragstart="dragStart(key)"
+                  @dragend="dragEnd(key)"
                   class="height100"
                 >
                   <div
@@ -128,17 +131,24 @@
                       <li><button
                         @click="downloadFile(file)"
                         class="navButton">
-                        Download file
+                        Download {{file.isFolder ? 'folder' : 'file'}}
                       </button></li>
                       <li><button
                         @click="renameFile(key)"
                         class="navButton">
-                        Rename File
+                        Rename {{file.isFolder ? 'folder' : 'file'}}
                       </button></li>
+                      <li v-if="currentFolder !== 'SupFiles Home'">
+                        <button
+                        @click="moveBackInFolder(file.filename)"
+                        class="navButton">
+                        Move {{file.isFolder ? 'folder' : 'file'}} back in folder tree
+                        </button>
+                      </li>
                       <li><button
                         @click="removeFile(file.filename)"
                         class="navButton">
-                        Remove file
+                        Remove {{file.isFolder ? 'folder' : 'file'}}
                       </button></li>
                       <li><button
                         @click="createLink(file.filename)"
@@ -203,7 +213,7 @@
 </template>
 
 <script>
-  import {AUTH_LOGOUT, GETUSER_REQUEST} from '../store/actions/auth'
+  import {AUTH_LOGOUT, GET_USER_REQUEST} from '../store/actions/auth'
   import { mapGetters } from 'vuex'
   import { mixin as clickaway } from 'vue-clickaway';
   import DropZone from './DropZone.vue'
@@ -231,7 +241,8 @@
         loading: false,
         linkToShare: '',
         folderSize: 0,
-        startColor: '#42b983'
+        startColor: '#42b983',
+        rowDragged: 0
       }
     },
     components: {
@@ -244,12 +255,6 @@
     },
     computed: {
       ...mapGetters(['isProfileLoaded', 'isAuthenticated', 'authStatus', 'getProfile']),
-      // loading: function () {
-      //   return this.authStatus === 'loading' && !this.isAuthenticated
-      // },
-      // isAuthenticated: function() {
-      //   return this.isAuthenticated;
-      // },
       userFolder: function() {
           return this.getProfile.folderName
       },
@@ -308,6 +313,18 @@
         this.$store.dispatch(AUTH_LOGOUT).then(() => this.$router.push('/'))
       },
 
+      dragStart: function(key) {
+        this.over = true;
+        const row = document.getElementById(`row${key}`);
+        row.classList.add("dragged");
+      },
+
+      dragEnd(key) {
+        this.over = false;
+        const row = document.getElementById(`row${key}`);
+        row.classList.remove("dragged");
+      },
+
       processFile(event) {
         this.loading = true;
         let filesSizeToUpload = 0;
@@ -361,14 +378,11 @@
       },
 
       moveToFolder: function(event, folderName, isFolder) {
-          console.log('eventMoveToFolder', event);
           if (isFolder &&
             event.target.className !== 'contextMenu' &&
             event.target.className !== 'navButton' &&
             event.target.className !== 'nav'
           ) {
-            //TODO DECODE URL POUR LES ESPACES
-//            const decodedFolderName = folderName.replace("%2F", "/");
             this.path = (!this.path) ? folderName : `${this.path}/${folderName}`;
             this.$router.push({ path: '/home/' + this.path.replace("%20", "-")});
             this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/allFiles`,
@@ -379,6 +393,30 @@
                 return this.uploadedFiles = response.data
               });
           }
+      },
+      moveBackInFolder: function(sourceFile) {
+        const route = this.$route.fullPath.replace("%2F", "/").split('/');
+        const backFolder = route[route.length - 2];
+        const destinationFile = route.splice(2,(route.length - 3)).join('/') + '/';
+        this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/moveBackInFolder`,
+          {
+            userFolder: this.userFolder,
+            path: this.path,
+            sourceFile,
+            destinationFile
+          }
+        )
+          .then((response) => {
+              if (response.data.result === 'FILEEXISTS') {
+                this.$notify({
+                  type: 'error',
+                  title: 'File name already in use',
+                  text: `Sorry, a file with this name already exists in ${backFolder}. Please rename your file and retry`,
+                  duration: 8000,
+                })
+              }
+            this.getFilesInCurrentFolder()
+          });
       },
 
       createFolder: function() {
@@ -398,7 +436,7 @@
             });
         }
         else if (!this.isProfileLoaded) {
-          this.$store.dispatch(GETUSER_REQUEST).then(() => {
+          this.$store.dispatch(GET_USER_REQUEST).then(() => {
             this.axios.get(`${this.$backendPath}:${this.$backendPort}/api/file/allFiles`,
               { params: { userFolder: this.userFolder, path: this.path } }
             )
@@ -454,7 +492,17 @@
             destinationFile
           }
         )
-          .then(() => this.getFilesInCurrentFolder());
+          .then((response) => {
+              if (response.data.result === 'FILEEXISTS') {
+                this.$notify({
+                  type: 'error',
+                  title: 'File name already in use',
+                  text: `Sorry, a file with this name already exists in folder ${destinationFile}`,
+                  duration: 5000,
+                })
+              }
+              this.getFilesInCurrentFolder()
+          });
       },
 
       renameFile: function(key) {
@@ -463,7 +511,6 @@
         inputToFocus.style.display = "block";
         inputToFocus.addEventListener("keyup", function(event) {
           if (event.key === "Enter") {
-            console.log('uploadedFiles', self.uploadedFiles);
             self.awayFromInput(event, key, self.uploadedFiles[key].filename);
           }
         });
@@ -481,10 +528,8 @@
           { userFolder: this.userFolder, path: this.path, filename }
         )
           .then((result) => {
-            //TODO CREATE LINK TO SHARE
             this.linkToShare = `${this.$backendPath}:${this.$backendPort}/api/file/getSharedFile/${result.data.linkHash}`;
             this.$modal.show('linkModal');
-            // return linkToShare;
           });
       },
 
@@ -508,16 +553,12 @@
             event.target.parentElement.nodeName !== 'svg') {
             const clickedNav =  document.getElementById("row" + rowNumber).getElementsByClassName("nav")[0];
             if (window.getComputedStyle(clickedNav).display !== "none") {
-              // clickedNav.classList.remove('activeNav');
               clickedNav.style.display = 'none';
             }
           }
       },
 
       awayFromInput: function (event, inputNumber, filename) {
-        // console.log('eveeeent', event);
-        // console.log('inputNumber', inputNumber);
-        // console.log('filename', filename);
         if (event.target.className !== 'navButton') {
           const input = document.getElementsByClassName(`input${inputNumber}`)[0];
           if (window.getComputedStyle(input).display !== "none") {
@@ -530,7 +571,17 @@
                   `${this.$backendPath}:${this.$backendPort}/api/file/newFolder`,
                   {userFolder: this.userFolder, path: this.path, folderName: input.value}
                 )
-                  .then(() => this.getFilesInCurrentFolder() );
+                  .then((response) => {
+                    if (response.data.result === 'FILEEXISTS') {
+                      this.$notify({
+                        type: 'error',
+                        title: 'File name already in use',
+                        text: 'Sorry, a file with this name already exists',
+                        duration: 5000,
+                      })
+                    }
+                    this.getFilesInCurrentFolder()
+                  });
               } else {
                 this.axios.post(`${this.$backendPath}:${this.$backendPort}/api/file/rename`,
                   { userFolder: this.userFolder,
@@ -539,7 +590,17 @@
                     newFileName: input.value
                   }
                 )
-                  .then(() => this.getFilesInCurrentFolder());
+                  .then((response) => {
+                    if (response.data.result === 'FILEEXISTS') {
+                      this.$notify({
+                        type: 'error',
+                        title: 'File name already in use',
+                        text: 'Sorry, a file with this name already exists',
+                        duration: 5000,
+                      })
+                    }
+                    this.getFilesInCurrentFolder()
+                  });
               }
             }
           }
@@ -568,9 +629,6 @@
       document.getElementsByTagName('body')[0].classList.remove('v--modal-block-scroll');
     },
 
-    // created: function () {
-    //   this.loading = true;
-    // },
     updated: function() {
       if (this.newFileNumber !== -1) {
           this.renameFile(this.newFileNumber);
@@ -605,7 +663,6 @@
   }
   #fileList {
     position: relative;
-    /*z-index: 1;*/
     margin: 3% auto;
     width: 80%;
     border-collapse: collapse;
@@ -614,8 +671,6 @@
   #fileList tr {
     text-align: left;
     position: relative;
-    /*z-index: 1;*/
-    /*height: 80px;*/
     border-top: 2px solid #42b983;
     border-bottom: 2px solid #42b983;
     cursor: pointer;
@@ -625,8 +680,6 @@
     height: 50px;
     width: 80%;
     vertical-align: middle;
-    /*padding: 1.5% 0;*/
-    /*padding: auto;*/
   }
 
   #fileList th, td:first-child {
@@ -641,10 +694,7 @@
   }
 
   #fileList tr:hover {
-    /*opacity: 0.2;*/
-    /*color: black;*/
     background-color: lightgray;
-    /*border: 2px solid grey !important;*/
   }
 
   #fileList tr:hover .contextMenu {
@@ -652,8 +702,6 @@
   }
 
   #fileList tr:first-child:hover {
-    /*opacity: 0.5;*/
-    /*color: black;*/
     background-color: white;
     cursor: auto;
   }
@@ -680,18 +728,12 @@
     width: 200px;
     position: absolute;
     background-color: white;
-    /*margin-left: 96px;*/
-    /*margin-top: 3px;*/
     z-index: 9500;
     left:0;
     right:0;
     top: 47px;
     margin: auto;
   }
-
-  /*.nav.active  {*/
-    /*display: none;*/
-  /*}*/
 
   .nav > ul > li {
     height: 40px;
@@ -700,11 +742,9 @@
   }
 
   .nav > ul {
-    border: 1px solid grey
+    border: 1px solid grey;
+    background-color: white;
   }
-  /*.nav > ul > li:hover {*/
-    /*background-color: lightskyblue;*/
-  /*}*/
 
   .nav button {
     border: none;
@@ -726,34 +766,8 @@
     height: 40px;
     vertical-align: middle;
     padding: 6px 2px;
-
-    /*max-height: 100%;*/
-    /*max-width: 100%;*/
-    /*width: auto;*/
-    /*height: 30px;*/
-    /*position: absolute;*/
-    /*top: 0;*/
-    /*bottom: 0;*/
-    /*left: 0;*/
-    /*right: 0;*/
-    /*margin: auto;*/
-
-
-    /*padding-top: 10px;*/
-    /*padding: 2px 6px;*/
-    /*margin: auto;*/
-    /*margin-left: 5px;*/
-    /*background-color: white;*/
   }
 
-  /*.contextMenu > img {*/
-    /*!*position: absolute;*!*/
-    /*!*top: 50%;*!*/
-    /*!*left: 50%;*!*/
-    /*width: 20px;*/
-    /*height: 20px;*/
-    /*vertical-align: middle;*/
-  /*}*/
   .helper {
     display: inline-block;
     height: 100%;
@@ -765,28 +779,25 @@
     cursor: pointer;
     width: 40px;
     height: 40px;
-    /*height: 40px;*/
-    /*width: 40px;*/
-    /*padding: 2px 6px;*/
-    /*margin-left: 0;*/
   }
   td.over{
     background-color: lightskyblue;
     cursor: grabbing !important;
   }
+
+
+  .dragged > td {
+    background-color: lightgray !important;
+  }
   .drop {
     height: 100%;
-    /*position: absolute;*/
     width: 100%;
-    /*top: 0;*/
-    /*left: 0;*/
   }
 
   .inputFields {
     border: 2px solid grey;
     position: absolute;
     left: 49px;
-    /*margin: auto;*/
     top: 10px;
     width: 80%;
     height: 60%;
@@ -796,16 +807,10 @@
 
   #videoPlayer {
     margin: auto;
-    /*vertical-align: middle;*/
   }
   .videoContainer {
     text-align: center;
-    /*display: flex;*/
-    /*align-items: center;*/
   }
-  /*td > * {*/
-    /*vertical-align : middle;*/
-  /*}*/
 
   .filename {
     display: inline-block;
@@ -871,7 +876,6 @@
     margin-top: 3%;
     font-size: 300%;
     text-align: center;
-    /*width: 100%;*/
   }
   .body {
     padding-top: 6%;
