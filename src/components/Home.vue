@@ -358,14 +358,17 @@
       },
 
       downloadFile: function(file) {
-        this.axios.post(
+        this.axios.get(
           `${this.$backendPath}:${this.$backendPort}/api/file/download`,
-          { userFolder: this.userFolder,
-            path: this.path,
-            filename: file.filename,
-            isFolder: file.isFolder,
+          {
+            params: {
+              userFolder: this.userFolder,
+              path: this.path,
+              filename: file.filename,
+              isFolder: file.isFolder,
+            },
+            responseType: 'arraybuffer'
           },
-          {responseType: 'arraybuffer'}
         )
           .then(function (response) {
             let filename = file.filename;
@@ -878,7 +881,11 @@
     text-align: center;
   }
   .body {
-    padding-top: 6%;
+    padding-top: 100px;
+  }
+
+  .body.bodyWithNav {
+    padding-top: 210px !important;
   }
 
   @keyframes float {

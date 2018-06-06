@@ -97,7 +97,7 @@
     <div class="slider">
       <h1>ONE LAST STEP !</h1>
       <div class="confirmationText">
-        <p>Thanks you for registering to SupFiles !</p>
+        <p>Thank you for registering to SupFiles !</p>
         <p>We just sent you an email to <span class="email">{{registerForm.email}}</span>.</p>
         <p>Please confirm your email before you can use our services.</p>
       </div>
@@ -110,7 +110,7 @@
     <div class="usernameSlider">
       <h1>ONE LAST STEP !</h1>
       <div class="confirmationText">
-        <p class="thanksText">Thanks you for registering to SupFiles !</p>
+        <p class="thankText">Thank you for registering to SupFiles !</p>
         <form @submit.prevent="saveUsername">
           <div class="field">
             <label class="label">Please let us know your username :</label>
@@ -347,7 +347,7 @@
     text-align: center;
   }
 
-  .thanksText {
+  .thankText {
     margin-bottom: 2%;
   }
   .usernameSlider h1 {

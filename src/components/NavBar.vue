@@ -31,7 +31,7 @@
                   <icon name="plus-circle"/>
                 </span>
                 <span>
-                  Create New Folder
+                  Create new folder
                 </span>
               </a>
               <a
@@ -205,6 +205,7 @@
       toggleBurger() {
         document.querySelector('.navbar-burger').classList.toggle('is-active');
         document.querySelector('.navbar-menu').classList.toggle('is-active');
+        document.getElementsByClassName('body')[0].classList.toggle('bodyWithNav');
       },
       googleSignOut() {
         if(gapi.auth2) {
