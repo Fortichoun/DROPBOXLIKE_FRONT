@@ -1,7 +1,10 @@
 <template>
   <nav class="navbar has-shadow is-fixed-top">
     <div class="navbar-brand">
-      <a class="navbar-item">
+      <a
+        class="navbar-item"
+        @click="getWelcomePage"
+      >
         <img
           src="../assets/supfiles.png"
           alt="SupFiles"
@@ -192,6 +195,9 @@
         } else if (this.$route.name === 'home'){
           this.$parent.moveToFolderInTreePath('');
         }
+      },
+      getWelcomePage() {
+        this.$router.push('/');
       },
       newFolder() {
         this.$parent.createFolder();

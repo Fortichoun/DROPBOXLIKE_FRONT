@@ -186,11 +186,12 @@
         />
       </div>
       <modal
-        :width="1280"
+        width="1280"
         name="videoModal"
         height="auto"
-        :scrollable=true
         @opened="modalOpened"
+        :resizable="true"
+        :adaptive="true"
       >
         <div class="videoContainer">
           <video
@@ -264,7 +265,7 @@
       currentFolder: function() {
           return  (this.$route.fullPath.replace("%2F", "/").split('/').pop() === 'home') ?
             'SupFiles Home' :
-            this.$route.fullPath.replace("%2F", "/").split('/').pop();
+            this.$route.fullPath.replace("%2F", "/").replace("%20", " ").split('/').pop();
       }
     },
 
@@ -434,8 +435,12 @@
             { params: { userFolder: this.userFolder, path: this.path } }
           )
             .then(response => {
-              this.uploadedFiles = response.data;
-              this.getFolderSize();
+              if(response.data.result === 'ERROR') {
+                this.$router.go(-1);
+              } else {
+                this.uploadedFiles = response.data;
+                this.getFolderSize();
+              }
             });
         }
         else if (!this.isProfileLoaded) {
@@ -444,8 +449,12 @@
               { params: { userFolder: this.userFolder, path: this.path } }
             )
               .then(response => {
-                this.uploadedFiles = response.data;
-                this.getFolderSize();
+                if(response.data.result === 'ERROR') {
+                  this.$router.go(-1);
+                } else {
+                  this.uploadedFiles = response.data;
+                  this.getFolderSize();
+                }
               });
           });
         }
@@ -459,7 +468,7 @@
           treeFolders.forEach((folder, index) => {
             foldersEnhanced.push({
               key: index,
-              folderName: folder,
+              folderName: folder.replace("%20", " "),
               folderPath: fullPath.split('/').slice(2, ( -1 * treeFolders.length) + index).join('/')
             });
           });
